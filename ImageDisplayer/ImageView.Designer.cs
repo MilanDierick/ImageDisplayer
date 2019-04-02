@@ -49,7 +49,6 @@
             this.Controls.Add(this.pictureBox1);
             this.Name = "ImageView";
             this.Text = "ImageView";
-            this.Load += new System.EventHandler(this.ImageView_Load);
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.ResumeLayout(false);
 

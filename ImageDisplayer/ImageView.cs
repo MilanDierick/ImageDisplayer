@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using NumSharp.Core;
 
 namespace ImageDisplayer
 {
@@ -30,22 +28,11 @@ namespace ImageDisplayer
 
             buffer = File.ReadAllBytes(Environment.CurrentDirectory + "/image.yuv");
             r = new byte[sizeof(byte) * ImageWidth * ImageHeight * 3];
-
-            /*
-            Buffer.BlockCopy(buffer, 0, tmpBuffer, 0, ImageWidth * ImageHeight);
-            y = np.frombuffer(tmpBuffer, np.uint8);
-
-            Buffer.BlockCopy(buffer, ImageWidth * ImageHeight, tmpBuffer, 0, ImageWidth * ImageHeight / 4);
-            u = np.frombuffer(tmpBuffer, np.uint8);
-
-            Buffer.BlockCopy(buffer, ImageWidth * ImageHeight + ImageWidth * ImageHeight / 4, tmpBuffer, 0, ImageWidth * ImageHeight / 4);
-            v = np.frombuffer(tmpBuffer, np.uint8);
-            */
+            g = new byte[sizeof(byte) * ImageWidth * ImageHeight * 3];
+            b = new byte[sizeof(byte) * ImageWidth * ImageHeight * 3];
 
             y = buffer.Skip(0).Take(ImageWidth * ImageHeight).ToArray();
-
             u = buffer.Skip(ImageWidth * ImageHeight).Take(ImageWidth * ImageHeight / 4).ToArray();
-
             v = buffer.Skip(ImageWidth * ImageHeight + ImageWidth * ImageHeight / 4).Take(ImageWidth * ImageHeight).ToArray();
 
             // https://docs.microsoft.com/en-us/previous-versions/aa917087(v=msdn.10)
@@ -54,6 +41,10 @@ namespace ImageDisplayer
                 byte c = y[i];
                 byte d = u[i];
                 byte e = v[i];
+
+                r[i] = AsByte((298 * c + 409 * e + 128) >> 8);
+                g[i] = AsByte((298 * c - 100 * d - 208 * e + 128) >> 8);
+                b[i] = AsByte((298 * c + 516 * d + 128) >> 8);
             }
         }
 
