@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -23,20 +20,61 @@ namespace UDPclient
 
         private const int FrameSize = YFrameSize + 2 * CFrameSize;
 
+        private const int PacketHeaderSize = 4 * 3;
+        private const int PacketPayloadSize = 1024;
+        private const int PacketSize = PacketHeaderSize + PacketPayloadSize;
+
         private readonly byte[] _yuvBuffer = new byte[FrameSize];
 
         private MemoryStream _yuvStream;
+        private MemoryStream _packetStream;
+        private BinaryWriter _packetWriter;
 
         public void Run()
         {
-            UDPSocket c = new UDPSocket();
+            UdpSocket c = new UdpSocket();
             c.Client("127.0.0.1", 27000);
 
             _yuvStream = new MemoryStream(File.ReadAllBytes(Environment.CurrentDirectory + "/image.yuv"));
 
+            // HACK: Wait for server to be ready to receive, we don't have a hand-shake yet.
             Thread.Sleep(1000);
 
-            c.Send("TEST");
+            _packetStream = new MemoryStream(PacketSize);
+            _packetWriter = new BinaryWriter(_packetStream);
+
+            int frameIndex = 0;
+
+            while (!Console.KeyAvailable || Console.ReadKey(false).Key != ConsoleKey.Escape)
+            {
+                if (_yuvStream.Read(_yuvBuffer, 0, FrameSize) <= 0)
+                {
+                    _yuvStream.Position = 0;
+                }
+
+                for (int offset = 0; offset < FrameSize; ++offset)
+                {
+                    _packetWriter.Seek(0, SeekOrigin.Begin);
+
+                    _packetWriter.Write(frameIndex);
+
+                    _packetWriter.Write(offset);
+
+                    var length = Math.Min(PacketPayloadSize, FrameSize - offset);
+                    _packetWriter.Write(length);
+
+                    _packetWriter.Write(_yuvBuffer, offset, length);
+
+                    c.Send(_packetStream.GetBuffer());
+                }
+
+                ++frameIndex;
+
+                // TODO: This is not precise, Windows timers often have a resolution of 18ms...
+                Thread.Sleep(1000 / 60);
+            }
+
+
             Console.ReadLine();
         }
 
@@ -45,51 +83,7 @@ namespace UDPclient
         {
             var prg = new Program();
             prg.Run();
-           
+
         }
     }
-
-
-    public class UDPSocket
-    {
-        private Socket _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        private const int bufsize = 6 * 245;
-        private State state = new State();
-        private EndPoint epFrom = new IPEndPoint(IPAddress.Any, 0);
-        private AsyncCallback recv = null;
-
-        public class State
-        {
-        public byte[] buffer = new byte[bufsize];
-        }
-
-        private void Receive()
-        {
-            _socket.BeginReceiveFrom(state.buffer, 0, bufsize, SocketFlags.None, ref epFrom, recv = (ar) =>
-            {
-                State so = (State)ar.AsyncState;
-                int bytes = _socket.EndReceiveFrom(ar, ref epFrom);
-                _socket.BeginReceiveFrom(so.buffer, 0, bufsize, SocketFlags.None, ref epFrom, recv, so);
-                Console.WriteLine("RECV: {0}: {1}, {2}", epFrom.ToString(), bytes, Encoding.ASCII.GetString(so.buffer, 0, bytes));
-            }, state);
-        }
-
-        public void Client(string address, int port)
-        {
-            _socket.Connect(IPAddress.Parse(address), port);
-            //Receive();
-        }
-
-        public void Send(string text)
-        {
-            byte[] data = Encoding.ASCII.GetBytes(text);
-            _socket.BeginSend(data, 0, data.Length, SocketFlags.None, (ar) =>
-            {
-                State so = (State)ar.AsyncState;
-                int bytes = _socket.EndSend(ar);
-                Console.WriteLine("{0} - {1}", bytes, text);
-            }, state);
-        }
-    }
-
 }

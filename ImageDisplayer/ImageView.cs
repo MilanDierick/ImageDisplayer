@@ -3,7 +3,10 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows.Forms;
 
 namespace ImageDisplayer
@@ -20,41 +23,62 @@ namespace ImageDisplayer
 
         private const int FrameSize = YFrameSize + 2 * CFrameSize;
 
+        private const int PacketHeaderSize = 3 * 4;
+        private const int PacketPayloadSize = 1024;
+        private const int PacketSize = PacketHeaderSize + PacketPayloadSize;
+
         private readonly Bitmap _rgbBitmap = new Bitmap(YFrameWidth, YFrameHeight, PixelFormat.Format24bppRgb);
         private readonly byte[] _yuvBuffer = new byte[FrameSize];
 
-        private MemoryStream _yuvStream;
+        private readonly byte[] _packetBuffer = new byte[PacketSize];
 
-
-        private Timer _timer = new Timer();
-
+        private Socket _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        private bool _firstFrame = true;
 
         public ImageView()
         {
             InitializeComponent();
 
+            _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
+            _socket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 27000));
+
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Opaque, true);
-            SetStyle(ControlStyles.DoubleBuffer|ControlStyles.OptimizedDoubleBuffer, false);
-           // _yuvStream = new MemoryStream(File.ReadAllBytes(Environment.CurrentDirectory + "/image.yuv"));
+            SetStyle(ControlStyles.DoubleBuffer | ControlStyles.OptimizedDoubleBuffer, false);
 
-            var displayer = new Action(DisplayNextFrame);
-            _timer.Interval = 1000/60;
-            _timer.Tick += delegate { Invoke(displayer); };
-            _timer.Start();
+            // Start receiving first frame
+            int frameIndex = 0;
 
-            Invalidate();
-            Update();
+            while (true)
+            {
+                int count = _socket.Receive(_packetBuffer);
+
+                if (count > PacketHeaderSize)
+                {
+                    using (var packetStream = new MemoryStream(_packetBuffer))
+                    using (var packetReader = new BinaryReader(packetStream))
+                    {
+                        var index = packetReader.ReadInt32();
+                        var offset = packetReader.ReadInt32();
+                        var length = packetReader.ReadInt32();
+
+                        if (count - PacketHeaderSize >= length)
+                        {
+                            packetReader.Read(_yuvBuffer, offset, length);
+                        }
+
+                        if (index != frameIndex)
+                        {
+                            DisplayNextFrame();
+                            Update();
+                            Application.DoEvents();
+                        }
+                    }
+                }
+            }
         }
 
         private unsafe void DisplayNextFrame()
         {
-            // TODO: _yuvBuffer should come from UDP
-            if (_yuvStream.Read(_yuvBuffer, 0, FrameSize) <= 0)
-            {
-                _yuvStream.Position = 0;
-                return;
-            }
-
             var data = _rgbBitmap.LockBits(new Rectangle(0, 0, YFrameWidth, YFrameHeight), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
 
             var rgb = (byte*)data.Scan0.ToPointer();
@@ -103,9 +127,10 @@ namespace ImageDisplayer
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            if (_yuvStream.Position == 0)
+            if (_firstFrame)
             {
                 e.Graphics.Clear(Color.SkyBlue);
+                _firstFrame = false;
             }
 
             e.Graphics.DrawImage(_rgbBitmap, 0, 0);
