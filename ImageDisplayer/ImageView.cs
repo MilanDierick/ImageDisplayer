@@ -41,7 +41,7 @@ namespace ImageDisplayer
 
             for (int y = 0; y < ImageHeight; y++)
             {
-                for (int x = 0; x < ImageHeight; x++)
+                for (int x = 0; x < ImageWidth; x++)
                 {
                     int i = x + y * ImageWidth;
                     int j = (x >> 1) + (y >> 1) * (ImageWidth >> 1);
@@ -86,7 +86,7 @@ namespace ImageDisplayer
 
             for (int y = 0; y < ImageHeight; y++)
             {
-                for (int x = 0; x < ImageHeight; x++)
+                for (int x = 0; x < ImageWidth; x++)
                 {
                     int i = x + y * ImageWidth;
                     Color c = Color.FromArgb(_r[i], _g[i], _b[i]);
@@ -119,6 +119,11 @@ namespace ImageDisplayer
         {
             e.Graphics.DrawImage(bmp, 0, 0);
             base.OnPaint(e);
+        }
+
+        private void ImageView_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }
