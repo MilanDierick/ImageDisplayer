@@ -20,16 +20,12 @@ namespace ImageDisplayer
 
         private const int FrameSize = YFrameSize + 2 * CFrameSize;
 
-
-        private Bitmap _rgbBitmap = new Bitmap(YFrameWidth, YFrameHeight, PixelFormat.Format24bppRgb);
+        private readonly Bitmap _rgbBitmap = new Bitmap(YFrameWidth, YFrameHeight, PixelFormat.Format24bppRgb);
+        private readonly byte[] _yuvBuffer = new byte[FrameSize];
 
         private MemoryStream _yuvStream;
 
         private Timer _timer = new Timer();
-
-        private readonly byte[] _y = new byte[YFrameSize];
-        private readonly byte[] _u = new byte[YFrameSize];
-        private readonly byte[] _v = new byte[YFrameSize];
 
 
         public ImageView()
@@ -52,9 +48,8 @@ namespace ImageDisplayer
 
         private unsafe void DisplayNextFrame()
         {
-            if (_yuvStream.Read(_y, 0, YFrameSize) <= 0 ||
-                _yuvStream.Read(_u, 0, CFrameSize) <= 0 ||
-                _yuvStream.Read(_v, 0, CFrameSize) <= 0)
+            // TODO: _yuvBuffer should come from UDP
+            if (_yuvStream.Read(_yuvBuffer, 0, FrameSize) <= 0)
             {
                 _yuvStream.Position = 0;
                 return;
@@ -67,15 +62,17 @@ namespace ImageDisplayer
             for (int y = 0; y < YFrameHeight; y++)
             {
                 var yOffset = y * YFrameWidth;
-                var cOffset = (y>>1) * CFrameWidth;
+                var cOffset = (y >> 1) * CFrameWidth;
+                var uOffset = YFrameSize + cOffset;
+                var vOffset = CFrameSize + uOffset;
 
                 var rgbOffset = y * data.Stride;
 
                 for (int x = 0, t = 0; x < YFrameWidth; x++, t += 3)
                 {
-                    var C = _y[yOffset + x] - 16;
-                    var D = _u[cOffset + (x >> 1)] - 128;
-                    var E = _v[cOffset + (x >> 1)] - 128;
+                    var C = _yuvBuffer[yOffset + x] - 16;
+                    var D = _yuvBuffer[uOffset + (x >> 1)] - 128;
+                    var E = _yuvBuffer[vOffset + (x >> 1)] - 128;
                     rgb[rgbOffset + t + 0] = AsByte((298 * C + 409 * E + 128) >> 8);
                     rgb[rgbOffset + t + 1] = AsByte((298 * C - 100 * D - 208 * E + 128) >> 8);
                     rgb[rgbOffset + t + 2] = AsByte((298 * C + 516 * D + 128) >> 8);
