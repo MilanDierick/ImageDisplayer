@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
@@ -45,6 +46,9 @@ namespace UDPclient
 
             int frameIndex = 0;
 
+            var sw = new Stopwatch();
+            sw.Start();
+
             while (!Console.KeyAvailable || Console.ReadKey(false).Key != ConsoleKey.Escape)
             {
                 if (_yuvStream.Read(_yuvBuffer, 0, FrameSize) <= 0)
@@ -52,7 +56,7 @@ namespace UDPclient
                     _yuvStream.Position = 0;
                 }
 
-                for (int offset = 0; offset < FrameSize; ++offset)
+                for (int offset = 0; offset < FrameSize; offset += PacketPayloadSize)
                 {
                     _packetWriter.Seek(0, SeekOrigin.Begin);
 
@@ -67,6 +71,8 @@ namespace UDPclient
 
                     c.Send(_packetStream.GetBuffer());
                 }
+
+                // Console.WriteLine($"Buffer {frameIndex} transmitted at {sw.Elapsed.TotalMilliseconds:0000.0}ms");
 
                 ++frameIndex;
 
