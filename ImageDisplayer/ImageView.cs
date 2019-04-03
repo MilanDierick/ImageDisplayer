@@ -25,6 +25,7 @@ namespace ImageDisplayer
 
         private MemoryStream _yuvStream;
 
+
         private Timer _timer = new Timer();
 
 
@@ -34,8 +35,7 @@ namespace ImageDisplayer
 
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Opaque, true);
             SetStyle(ControlStyles.DoubleBuffer|ControlStyles.OptimizedDoubleBuffer, false);
-
-            _yuvStream = new MemoryStream(File.ReadAllBytes(Environment.CurrentDirectory + "/image.yuv"));
+           // _yuvStream = new MemoryStream(File.ReadAllBytes(Environment.CurrentDirectory + "/image.yuv"));
 
             var displayer = new Action(DisplayNextFrame);
             _timer.Interval = 1000/60;
