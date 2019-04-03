@@ -10,23 +10,26 @@ namespace ImageDisplayer
 {
     public partial class ImageView : Form
     {
-        private const int FullFrameWidth = 256;
-        private const int FullFrameHeight = 192;
-        private const int FullFrameSize = FullFrameWidth * FullFrameHeight;
+        private const int YFrameWidth = 256;
+        private const int YFrameHeight = 192;
+        private const int YFrameSize = YFrameWidth * YFrameHeight;
 
-        private const int HalfFrameWidth = FullFrameWidth / 2;
-        private const int HalfFrameHeight = FullFrameHeight / 2;
-        private const int HalfFrameSize = HalfFrameWidth * HalfFrameHeight;
+        private const int CFrameWidth = YFrameWidth / 2;
+        private const int CFrameHeight = YFrameHeight / 2;
+        private const int CFrameSize = CFrameWidth * CFrameHeight;
 
-        private Bitmap _rgbBitmap = new Bitmap(FullFrameWidth, FullFrameHeight, PixelFormat.Format24bppRgb);
+        private const int FrameSize = YFrameSize + 2 * CFrameSize;
+
+
+        private Bitmap _rgbBitmap = new Bitmap(YFrameWidth, YFrameHeight, PixelFormat.Format24bppRgb);
 
         private MemoryStream _yuvStream;
 
         private Timer _timer = new Timer();
 
-        private readonly byte[] _y = new byte[FullFrameSize];
-        private readonly byte[] _u = new byte[FullFrameSize];
-        private readonly byte[] _v = new byte[FullFrameSize];
+        private readonly byte[] _y = new byte[YFrameSize];
+        private readonly byte[] _u = new byte[YFrameSize];
+        private readonly byte[] _v = new byte[YFrameSize];
 
 
         public ImageView()
@@ -49,26 +52,26 @@ namespace ImageDisplayer
 
         private unsafe void DisplayNextFrame()
         {
-            if (_yuvStream.Read(_y, 0, FullFrameSize) <= 0 ||
-                _yuvStream.Read(_u, 0, HalfFrameSize) <= 0 ||
-                _yuvStream.Read(_v, 0, HalfFrameSize) <= 0)
+            if (_yuvStream.Read(_y, 0, YFrameSize) <= 0 ||
+                _yuvStream.Read(_u, 0, CFrameSize) <= 0 ||
+                _yuvStream.Read(_v, 0, CFrameSize) <= 0)
             {
                 _yuvStream.Position = 0;
                 return;
             }
 
-            var data = _rgbBitmap.LockBits(new Rectangle(0, 0, FullFrameWidth, FullFrameHeight), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+            var data = _rgbBitmap.LockBits(new Rectangle(0, 0, YFrameWidth, YFrameHeight), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
 
             var rgb = (byte*)data.Scan0.ToPointer();
 
-            for (int y = 0; y < FullFrameHeight; y++)
+            for (int y = 0; y < YFrameHeight; y++)
             {
-                var yOffset = y * FullFrameWidth;
-                var cOffset = (y>>1) * HalfFrameWidth;
+                var yOffset = y * YFrameWidth;
+                var cOffset = (y>>1) * CFrameWidth;
 
                 var rgbOffset = y * data.Stride;
 
-                for (int x = 0, t = 0; x < FullFrameWidth; x++, t += 3)
+                for (int x = 0, t = 0; x < YFrameWidth; x++, t += 3)
                 {
                     var C = _y[yOffset + x] - 16;
                     var D = _u[cOffset + (x >> 1)] - 128;
