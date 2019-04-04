@@ -28,7 +28,7 @@ namespace ImageDisplayer
         private const int FrameSize = YFrameSize + 2 * CFrameSize;
 
         private const int PacketHeaderSize = 3 * 4;
-        private const int PacketPayloadSize = 1024;
+        private const int PacketPayloadSize = 1460;
         private const int PacketSize = PacketHeaderSize + PacketPayloadSize;
 
         private const int BitmapCount = 3;
@@ -88,7 +88,7 @@ namespace ImageDisplayer
             using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
             {
                 socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
-                socket.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 27000));
+                socket.Bind(new IPEndPoint(IPAddress.Parse("10.1.1.7"), 27000));
 
                 var sw = new Stopwatch();
                 sw.Start();
@@ -192,9 +192,9 @@ namespace ImageDisplayer
                     var C = yuvBuffer[yOffset + x] - 16;
                     var D = yuvBuffer[uOffset + (x >> 1)] - 128;
                     var E = yuvBuffer[vOffset + (x >> 1)] - 128;
-                    rgb[rgbOffset + t + 0] = AsByte((298 * C + 409 * E + 128) >> 8);
+                    rgb[rgbOffset + t + 0] = AsByte((298 * C + 516 * D + 128) >> 8);
                     rgb[rgbOffset + t + 1] = AsByte((298 * C - 100 * D - 208 * E + 128) >> 8);
-                    rgb[rgbOffset + t + 2] = AsByte((298 * C + 516 * D + 128) >> 8);
+                    rgb[rgbOffset + t + 2] = AsByte((298 * C + 409 * E + 128) >> 8);
                 }
             }
 
